@@ -32,10 +32,12 @@ Copying some text in a Pale Moon window resulted in the following output:
     Available targets: COMPOUND_TEXT, MULTIPLE, SAVE_TARGETS, STRING, TARGETS, TEXT, text/_moz_htmlcontext, text/_moz_htmlinfo, text/html, text/x-moz-url-priv, TIMESTAMP, UTF8_STRING
     Clipboard text: 'If you follow the sendemail'
 
+
 Bugs And Feature Requests
 =========================
 
 See the [issue tracker](https://github.com/OmegaPhil/clipboard-observer/issues)
+
 
 Contact Details
 ===============
