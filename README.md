@@ -9,9 +9,10 @@ Requirements
 
 Tested with (packages without links are available in Debian repos):
 
-Python v3.4  
-GTK 3.20  
-python-sh v1.11 (post a bug if you want this dependency dropped, if enough people complain I will, I just want to get more EXP with this tool)
+Python v3.5  
+GTK v3.20  
+python3-gi v3.20  
+python3-sh v1.11 (post a bug if you want this dependency dropped, if enough people complain I will, I just want to get more EXP with this tool)
 
 
 Documentation
