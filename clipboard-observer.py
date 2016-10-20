@@ -68,9 +68,14 @@ def get_window_name(window_id):
     # with just the owning program
     output = xprop('-id', window_id)
     for line in output:
-        result = re.match('WM_NAME\(STRING\) = "(.*)"', line)
-        if result:
-            return result.groups()[0]
+
+        # Only attempt to match on actual text - the call returns a bytes, which
+        # upsets re when the values are out of range. Some windows do offer an
+        # '_NET_WM_NAME(UTF8_STRING)' atom, but this is not common enough
+        if line.startswith('WM_NAME(STRING)'):
+            result = re.match('WM_NAME\(STRING\) = "(.*)"', line)
+            if result:
+                return result.groups()[0]
 
     # Reaching here means no window name information was detected - this has
     # happened under VNC testing so is no longer an exception
