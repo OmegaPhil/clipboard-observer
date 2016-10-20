@@ -36,27 +36,27 @@ from gi.repository import Gdk, GLib, Gtk
 UNKNOWN_WINDOW_NAME = '<UNKNOWN>'
 
 
-def analyse_clipboard(clipboard):
+def analyse_selection(selection, selection_type):
 
-    # Fetching intial available targets for the clipboard
-    targets_available, targets = clipboard.wait_for_targets()
+    # Fetching initial available targets for the selection
+    targets_available, targets = selection.wait_for_targets()
 
     # Remember that named tuples are only available GTK3.20+ so should not be used
     # I have now had an incident with the laptop where no targets were available,
     # but there was clearly a piece of text on the clipboard (and it was
     # noticeably slow to fetch) - so this is no longer an error situation
     if not targets_available:
-        print('Failed to fetch clipboard targets! Data may still be available '
-              'on the clipboard', file=sys.stderr)
+        print('Failed to fetch \'%s\' selection targets! Data may still be '
+              'available in the selection' % selection_type, file=sys.stderr)
 
-    # This fetches and converts the clipboard contents as UTF-8 text
-    clipboard_text = clipboard.wait_for_text()
-    if clipboard_text is None:
-        raise Exception('Failed to fetch clipboard text!')
+    # This fetches and converts the selection contents as UTF-8 text - some
+    # selections (e.g. SECONDARY) may be genuinely empty, and therefore return
+    # None
+    selection_text = selection.wait_for_text()
 
     # Reporting
-    print('Available targets: %s\nClipboard text: \'%s\'\n'
-          % (pretty_print_targets_list(targets), clipboard_text))
+    print('Available targets: %s\nSelection \'%s\' text: \'%s\'\n'
+          % (pretty_print_targets_list(targets), selection_type, selection_text))
 
 
 def get_window_name(window_id):
@@ -84,7 +84,7 @@ def get_window_name(window_id):
     return UNKNOWN_WINDOW_NAME
 
 
-def owner_change(clipboard, event):
+def owner_change(selection, event, selection_type):
 
     # Obtaining window name - have had some examples after starting up x11vnc
     # where there is no owner
@@ -92,24 +92,24 @@ def owner_change(clipboard, event):
         window_id = str(event.owner.get_xid())
         window_name = get_window_name(window_id)
     else:
-        print('Clipboard owner change event occurred without a valid event owner'
-        'window!', file=sys.stderr)
+        print('Selection \'%s\' owner change event occurred without a valid event owner'
+        'window!' % selection_type, file=sys.stderr)
         window_name = UNKNOWN_WINDOW_NAME
         window_id = 0
 
     # Reporting details of the change
     # Note that GI enums aren't actually python enums, so instances don't have
     # the name property
-    print('Clipboard owner change detected:\nWindow: %s (ID %s), reason: %s, '
+    print('Selection (%s) owner change detected:\nWindow: %s (ID %s), reason: %s, '
           'selection: %s'
-          % (window_name, window_id, event.reason.value_nick,
+          % (selection_type, window_name, window_id, event.reason.value_nick,
              event.selection.name()))
 
     # Debug code
     # print('Owner window xid: %s' % event.owner.get_xid())
 
-    # Analysing clipboard
-    analyse_clipboard(clipboard)
+    # Analysing selection
+    analyse_selection(selection, selection_type)
 
 
 def pretty_print_targets_list(targets):
@@ -125,12 +125,16 @@ def pretty_print_targets_list(targets):
 
 try:
 
-    # Obtaining clipboard and doing initial analysis - not interested in PRIMARY (yet?)
-    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    analyse_clipboard(clipboard)
+    # Obtaining selections and doing initial analysis - these are not
+    # 'clipboards' but X selections, one of which is the CLIPBOARD selection
+    # (https://en.wikipedia.org/wiki/X_Window_selection#Selections)
+    for selection_type in [Gdk.SELECTION_CLIPBOARD, Gdk.SELECTION_PRIMARY,
+                           Gdk.SELECTION_SECONDARY]:
+        selection = Gtk.Clipboard.get(selection_type)
+        analyse_selection(selection, selection_type)
 
-    # Hooking into future clipboard ownership change events
-    clipboard.connect('owner-change', owner_change)
+        # Hooking into future clipboard ownership change events
+        selection.connect('owner-change', owner_change, selection_type)
 
     # Starting off GLib mainloop rather than GTK mainloop - the latter is not
     # SIGINTable??
