@@ -19,12 +19,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+
 import re
 import sys
 
 from sh import xprop
 
-# Unfortunately for Python 3 I can't get at GTK2, so I have to depend on GTK3... 
+# Unfortunately for Python 3 I can't get at GTK2, so I have to depend on GTK3...
 from gi import require_version
 require_version("Gdk", "3.0")
 require_version("Gtk", "3.0")
@@ -39,7 +40,7 @@ def analyse_clipboard(clipboard):
 
     # Fetching intial available targets for the clipboard
     targets_available, targets = clipboard.wait_for_targets()
-    
+
     # Remember that named tuples are only available GTK3.20+ so should not be used
     # I have now had an incident with the laptop where no targets were available,
     # but there was clearly a piece of text on the clipboard (and it was
@@ -47,19 +48,19 @@ def analyse_clipboard(clipboard):
     if not targets_available:
         print('Failed to fetch clipboard targets! Data may still be available '
               'on the clipboard', file=sys.stderr)
-    
+
     # This fetches and converts the clipboard contents as UTF-8 text
     clipboard_text = clipboard.wait_for_text()
     if clipboard_text is None:
         raise Exception('Failed to fetch clipboard text!')
-    
+
     # Reporting
     print('Available targets: %s\nClipboard text: \'%s\'\n'
           % (pretty_print_targets_list(targets), clipboard_text))
 
 
 def get_window_name(window_id):
-    
+
     # Fetching WM_NAME from the xprop output, or raising an error
     # Note that this name isn't really the window title - e.g. for this window,
     # its 'Eclipse', rather than its true title 'Eclipse Workspace - Debug...' etc
@@ -70,7 +71,7 @@ def get_window_name(window_id):
         result = re.match('WM_NAME\(STRING\) = "(.*)"', line)
         if result:
             return result.groups()[0]
-    
+
     # Reaching here means no window name information was detected - this has
     # happened under VNC testing so is no longer an exception
     print('Unable to obtain window name from xprop output for window ID %s - '
@@ -79,7 +80,7 @@ def get_window_name(window_id):
 
 
 def owner_change(clipboard, event):
-    
+
     # Obtaining window name - have had some examples after starting up x11vnc
     # where there is no owner
     if not event.owner is None:
@@ -90,7 +91,7 @@ def owner_change(clipboard, event):
         'window!', file=sys.stderr)
         window_name = UNKNOWN_WINDOW_NAME
         window_id = 0
-    
+
     # Reporting details of the change
     # Note that GI enums aren't actually python enums, so instances don't have
     # the name property
@@ -98,16 +99,16 @@ def owner_change(clipboard, event):
           'selection: %s'
           % (window_name, window_id, event.reason.value_nick,
              event.selection.name()))
-    
+
     # Debug code
-    #print('Owner window xid: %s' % event.owner.get_xid())
-    
+    # print('Owner window xid: %s' % event.owner.get_xid())
+
     # Analysing clipboard
     analyse_clipboard(clipboard)
 
 
 def pretty_print_targets_list(targets):
-    
+
     # Targets is a list of Gdk.Atoms - these basically consist of a name and a
     # unimplemented boolean flag which is something to do with checking the
     # existence of the atom rather than just creating it - not relevant for me
@@ -118,17 +119,17 @@ def pretty_print_targets_list(targets):
 
 
 try:
-    
+
     # Obtaining clipboard and doing initial analysis - not interested in PRIMARY (yet?)
     clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     analyse_clipboard(clipboard)
-    
+
     # Hooking into future clipboard ownership change events
     clipboard.connect('owner-change', owner_change)
-    
+
     # Starting off GLib mainloop rather than GTK mainloop - the latter is not
     # SIGINTable??
     GLib.MainLoop().run()
-    
+
 except KeyboardInterrupt:
     pass
