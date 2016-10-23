@@ -20,10 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 
+import argparse
 import re
 import sys
 
-from sh import xprop
+from sh import xcb, xprop
 
 # Unfortunately for Python 3 I can't get at GTK2, so I have to depend on GTK3...
 from gi import require_version
@@ -34,6 +35,8 @@ from gi.repository import Gdk, GLib, Gtk
 
 # Used for any situation where the code fails to look up a window name
 UNKNOWN_WINDOW_NAME = '<UNKNOWN>'
+
+cutbuffer_contents = None
 
 
 def analyse_selection(selection, selection_type):
@@ -57,6 +60,27 @@ def analyse_selection(selection, selection_type):
     # Reporting
     print('Available targets: %s\nSelection \'%s\' text: \'%s\'\n'
           % (pretty_print_targets_list(targets), selection_type, selection_text))
+
+
+def check_cut_buffer():
+
+    global cutbuffer_contents
+
+    # Querying first cut buffer (looks like the other 7 aren't really used?
+    # More than 8 buffers can exist
+    output = xcb('-p', 0)
+
+    # Report initial value and detect further changes
+    if cutbuffer_contents is None:
+        print('Initial cutbuffer 0 value: \'%s\'\n' % output)
+        cutbuffer_contents = output
+    else:
+        if cutbuffer_contents != output:
+            print('cutbuffer 0 value changed: \'%s\'\n' % output)
+            cutbuffer_contents = output
+
+    # This is used as a GLib callback so must return True to not be destroyed
+    return True
 
 
 def get_window_name(window_id):
@@ -123,18 +147,43 @@ def pretty_print_targets_list(targets):
     return ', '.join(sorted_targets)
 
 
+# Configuring and parsing passed options
+parser = argparse.ArgumentParser()
+parser.add_argument('-b', '--cut-buffer', dest='cut_buffer', help='monitor cut '
+'buffer 0 contents', action='store_true', default=False)
+parser.add_argument('-c', '--clipboard', dest='clipboard', help='monitor the '
+'clipboard selection contents', action='store_true', default=True)
+parser.add_argument('-p', '--primary', dest='primary', help='monitor the primary'
+' selection contents', action='store_true', default=False)
+parser.add_argument('-s', '--secondary', dest='secondary', help='monitor the '
+'secondary  selection contents', action='store_true', default=False)
+options = parser.parse_args()
+
+# Determining selections to monitor
+selection_types = []
+if options.clipboard:
+    selection_types.append(Gdk.SELECTION_CLIPBOARD)
+if options.primary:
+    selection_types.append(Gdk.SELECTION_PRIMARY)
+if options.secondary:
+    selection_types.append(Gdk.SELECTION_SECONDARY)
+
 try:
 
     # Obtaining selections and doing initial analysis - these are not
     # 'clipboards' but X selections, one of which is the CLIPBOARD selection
     # (https://en.wikipedia.org/wiki/X_Window_selection#Selections)
-    for selection_type in [Gdk.SELECTION_CLIPBOARD, Gdk.SELECTION_PRIMARY,
-                           Gdk.SELECTION_SECONDARY]:
+    for selection_type in selection_types:
         selection = Gtk.Clipboard.get(selection_type)
         analyse_selection(selection, selection_type)
 
         # Hooking into future clipboard ownership change events
         selection.connect('owner-change', owner_change, selection_type)
+
+    if options.cut_buffer:
+
+        # Doing a dumb poll every second of cut buffer 0 when desired
+        GLib.timeout_add_seconds(1, check_cut_buffer)
 
     # Starting off GLib mainloop rather than GTK mainloop - the latter is not
     # SIGINTable??
