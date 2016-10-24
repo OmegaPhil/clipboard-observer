@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 '''
-Version 0.1 2016.09.11
+Version 0.5 2016.10.24
 
 Copyright (c) 2016, OmegaPhil - OmegaPhil@startmail.com
 
@@ -158,12 +158,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', '--cut-buffer', dest='cut_buffer', help='monitor cut '
 'buffer 0 contents', action='store_true', default=False)
 parser.add_argument('-c', '--clipboard', dest='clipboard', help='monitor the '
-'clipboard selection contents', action='store_true', default=True)
+'clipboard selection contents', action='store_true', default=False)
 parser.add_argument('-p', '--primary', dest='primary', help='monitor the primary'
 ' selection contents', action='store_true', default=False)
 parser.add_argument('-s', '--secondary', dest='secondary', help='monitor the '
 'secondary  selection contents', action='store_true', default=False)
 options = parser.parse_args()
+
+# If no selections/cut buffer are requested, turning on clipboard monitoring
+if (not options.cut_buffer
+    and not options.clipboard
+    and not options.primary
+    and not options.secondary):
+    options.clipboard = True
 
 # Determining selections to monitor
 selection_types = []
