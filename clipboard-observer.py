@@ -24,7 +24,7 @@ import argparse
 import re
 import sys
 
-from sh import xcb, xprop
+from sh import xcb, xprop  # pylint: disable=no-name-in-module
 
 # Unfortunately for Python 3 I can't get at GTK2, so I have to depend on GTK3...
 from gi import require_version
@@ -38,8 +38,11 @@ UNKNOWN_WINDOW_NAME = '<UNKNOWN>'
 
 cutbuffer_contents = None
 
+# pylint: disable=redefined-outer-name
+
 
 def analyse_selection(selection, selection_type):
+    '''Print state of selection after change detected'''
 
     # Fetching initial available targets for the selection
     targets_available, targets = selection.wait_for_targets()
@@ -63,8 +66,9 @@ def analyse_selection(selection, selection_type):
 
 
 def check_cut_buffer():
+    '''Check state of cut buffer 0 and print on change - callback for polling'''
 
-    global cutbuffer_contents
+    global cutbuffer_contents  # pylint: disable=global-statement
 
     # Querying first cut buffer (looks like the other 7 aren't really used?
     # More than 8 buffers can exist
@@ -84,8 +88,8 @@ def check_cut_buffer():
 
 
 def get_window_name(window_id):
+    '''Fetch WM_NAME from the xprop output, or raise an error'''
 
-    # Fetching WM_NAME from the xprop output, or raising an error
     # Note that this name isn't really the window title - e.g. for this window,
     # its 'Eclipse', rather than its true title 'Eclipse Workspace - Debug...' etc
     # Its not obvious how to get the real window title currently, I'm satisfied
@@ -97,7 +101,7 @@ def get_window_name(window_id):
         # upsets re when the values are out of range. Some windows do offer an
         # '_NET_WM_NAME(UTF8_STRING)' atom, but this is not common enough
         if line.startswith('WM_NAME(STRING)'):
-            result = re.match('WM_NAME\(STRING\) = "(.*)"', line)
+            result = re.match(r'WM_NAME\(STRING\) = "(.*)"', line)
             if result:
                 return result.groups()[0]
 
@@ -109,6 +113,7 @@ def get_window_name(window_id):
 
 
 def owner_change(selection, event, selection_type):
+    '''Print details of selection owner change and then trigger its analysis'''
 
     # Obtaining window name - have had some examples after starting up x11vnc
     # where there is no owner
@@ -119,7 +124,7 @@ def owner_change(selection, event, selection_type):
         print('Selection \'%s\' owner change event occurred without a valid event owner'
         'window!' % selection_type, file=sys.stderr)
         window_name = UNKNOWN_WINDOW_NAME
-        window_id = 0
+        window_id = '0'
 
     # Reporting details of the change
     # Note that GI enums aren't actually python enums, so instances don't have
@@ -137,6 +142,7 @@ def owner_change(selection, event, selection_type):
 
 
 def pretty_print_targets_list(targets):
+    '''Pretty print targets available in a selection'''
 
     # Targets is a list of Gdk.Atoms - these basically consist of a name and a
     # unimplemented boolean flag which is something to do with checking the
